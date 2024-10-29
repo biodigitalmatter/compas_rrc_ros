@@ -1,7 +1,8 @@
 from threading import Lock
 
 import rclpy
-from rclpy.qos import QoSProfile
+import rclpy.node
+from rclpy.qos import QoSPresetProfiles
 
 from compas_rrc_ros_interfaces import msg
 
@@ -14,7 +15,7 @@ class SequenceCheckModes(object):
 
 
 class RobotMessageTopicProvider(object):
-    def __init__(self, topic_name_sub, topic_name_pub, streaming_interface, robot_state, node: rclpy.Node, options=None):
+    def __init__(self, topic_name_sub, topic_name_pub, streaming_interface, robot_state, node: rclpy.node.Node, options=None):
         super(RobotMessageTopicProvider, self).__init__()
 
         self._publish_lock = Lock()
@@ -35,7 +36,7 @@ class RobotMessageTopicProvider(object):
         self.robot_state = robot_state
 
         # TODO: Verify topic queue sizes
-        self.subscriber = self.node.create_subscription(msg.RobotMessage, topic_name_sub, self.ros_to_robot_handler, QoSProfile())
+        self.subscriber = self.node.create_subscription(msg.RobotMessage, topic_name_sub, self.ros_to_robot_handler, QoSPresetProfiles.get_from_short_key("default"))
         self.publisher = self.node.create_publisher(msg.RobotMessage, topic_name_pub, 1)
 
         self.robot_state.on_message(self.robot_to_ros_handler)

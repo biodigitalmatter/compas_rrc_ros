@@ -8,12 +8,12 @@ import queue
 
 import rclpy
 from rclpy.executors import ExternalShutdownException
-import rclpy.logging
-from rclpy.logging import LoggingSeverity
+from rcl_interfaces.msg import ParameterDescriptor, ParameterType
+from rclpy import logging
 
 from compas_rrc_driver.event_emitter import EventEmitterMixin
 from compas_rrc_driver.protocol import WireProtocol
-from compas_rrc_driver.topics import RobotMessageTopicProvider
+from compas_rrc_driver.topics import RobotMessageTopicProvider, SequenceCheckModes
 
 
 CONNECTION_TIMEOUT = 5              # In seconds
@@ -26,7 +26,7 @@ QUEUE_RECONNECTION_TOKEN = -2
 START_PROCESS_TIME = timeit.default_timer()
 TIMING_START = dict()
 
-LOGGER = rclpy.logging.get_logger('compas_rrc_driver')
+LOGGER = logging.get_logger('compas_rrc_driver')
 
 
 def _set_socket_opts(sock):
@@ -208,7 +208,7 @@ class RobotStateConnection(EventEmitterMixin):
                             self.emit('message', message)
                             self.emit(WireProtocol.get_response_key(message), message)
 
-                            if LOGGER.get_effective_level() >= LoggingSeverity.DEBUG:
+                            if LOGGER.get_effective_level() >= logging.LoggingSeverity.DEBUG:
                                 timing_sent_to_topic = _get_perf_counter()
                                 ts = TIMING_START[message.feedback_id]
                                 LOGGER.debug('F-ID={}, S-ID={}, {}, sent_to_topic={}, msg_len={}'.format(
@@ -330,7 +330,7 @@ class StreamingInterfaceConnection(EventEmitterMixin):
                 token_type, message = self.queue.get(block=True, timeout=QUEUE_TIMEOUT)
 
                 if token_type == QUEUE_MESSAGE_TOKEN:
-                    if LOGGER.get_effective_level() >= LoggingSeverity.DEBUG:
+                    if LOGGER.get_effective_level() >= logging.LoggingSeverity.DEBUG:
                         timing_incoming = _get_perf_counter()
                         TIMING_START[message.sequence_id] = timing_incoming
 
@@ -342,7 +342,7 @@ class StreamingInterfaceConnection(EventEmitterMixin):
 
                     sent_bytes = writable[0].send(wire_message)
 
-                    if LOGGER.get_effective_level() >= LoggingSeverity.DEBUG:
+                    if LOGGER.get_effective_level() >= logging.LoggingSeverity.DEBUG:
                         timing_sent = _get_perf_counter()
                         LOGGER.debug('S-ID={}, , sent_to_robot={}, incoming={}, msg_len={}'.format(message.sequence_id, timing_sent - timing_incoming, timing_incoming, len(wire_message)))
 
@@ -383,6 +383,8 @@ class StreamingInterfaceConnection(EventEmitterMixin):
 def main():
     DEBUG = True
     ROBOT_HOST_DEFAULT = '127.0.0.1'
+    ROBOT_STREAMING_PORT_DEFAULT = 30101
+    ROBOT_STATE_PORT_DEFAULT = 30201
     TOPIC_MODE = 'message'
 
     rclpy.init()
@@ -393,16 +395,16 @@ def main():
     rclpy.get_global_executor().add_node(node)
 
     logger = node.get_logger()
-    logger.set_level(LoggingSeverity.DEBUG if DEBUG else LoggingSeverity.INFO)
-    LOGGER.set_level(LoggingSeverity.DEBUG if DEBUG else LoggingSeverity.INFO)
+    logger.set_level(logging.LoggingSeverity.DEBUG if DEBUG else logging.LoggingSeverity.INFO)
+    LOGGER.set_level(logging.LoggingSeverity.DEBUG if DEBUG else logging.LoggingSeverity.INFO)
 
-    robot_host = node.declare_parameter('robot_ip_address', ROBOT_HOST_DEFAULT).value
-    robot_streaming_port = node.declare_parameter('robot_streaming_port').value
-    robot_state_port = node.declare_parameter('robot_state_port').value
-    sequence_check_mode = node.declare_parameter('sequence_check_mode').value
+    robot_host = node.declare_parameter('robot_ip_address', value=ROBOT_HOST_DEFAULT, descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_STRING, description='Robot hostname.')).value
+    robot_streaming_port = node.declare_parameter('robot_streaming_port', value=ROBOT_STREAMING_PORT_DEFAULT,descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER, description="Robot straming port")).value
+    robot_state_port = node.declare_parameter('robot_state_port', value=ROBOT_STATE_PORT_DEFAULT, descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER, description="Robot state port")).value
+    sequence_check_mode = node.declare_parameter('sequence_check_mode', value=SequenceCheckModes.ALL, descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_STRING, description="Sequence check mode, from the SequenceCheckModes enum.")).value
 
     # Set protocol version in a parameter to enable version checks from the client side
-    node.declare_parameter('protocol_version', WireProtocol.VERSION)
+    node.declare_parameter('protocol_version', value=WireProtocol.VERSION,descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER, description="Protocol version"))
 
     streaming_interface = None
     robot_state = None

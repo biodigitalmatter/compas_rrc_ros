@@ -20,6 +20,7 @@ setup(
     tests_require=[],
     entry_points={
         'console_scripts': [
+            'driver = compas_rrc_driver.driver:main',
         ],
     },
 )
