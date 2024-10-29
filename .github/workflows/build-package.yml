@@ -6,6 +6,8 @@ on:
 jobs:
   build-pkg:
     runs-on: ubuntu-latest
+    container:
+      image: ubuntu:noble
     steps:
       - uses: ros-tooling/setup-ros@v0.7
         with:
