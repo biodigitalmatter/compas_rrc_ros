@@ -70,8 +70,7 @@ class WireProtocolVersion1(object):
         payload.append(current_items)
 
         if current_items > cls.MAX_FLOAT_VALUES:
-            raise ValueError('Protocol does not support more than ' +
-                             cls.MAX_FLOAT_VALUES + ' float values')
+            raise ValueError(f'Protocol does not support more than {cls.MAX_FLOAT_VALUES} float values')
 
         payload_format += '%df' % len(float_values)
         payload.extend(float_values)
